@@ -55,13 +55,34 @@ def generate_qr_code(sn):
 def on_generate():
     """Called when the Generate SN button is pressed."""
     global qr_pil_image
+
+    # Check required fields and highlight with red border if empty.
+    has_error = False
+    if not project_entry.get().strip():
+        project_entry.configure(border_color="red")
+        has_error = True
+    else:
+        project_entry.configure(border_color="gray")
+        
+    if not revision_entry.get().strip():
+        revision_entry.configure(border_color="red")
+        has_error = True
+    else:
+        revision_entry.configure(border_color="gray")
+        
+    if not finish_date_var.get().strip():
+        finish_date_entry.configure(border_color="red")
+        has_error = True
+    else:
+        finish_date_entry.configure(border_color="gray")
+        
+    if has_error:
+        status_label.configure(text="Please fill in the highlighted fields!")
+        return
+
     project_name = project_entry.get().strip()
     revision = revision_entry.get().strip()
     finish_date = finish_date_var.get().strip()
-    
-    if not (project_name and revision and finish_date):
-        status_label.configure(text="Please fill in Project, Revision, and Finish Date!")
-        return
     
     sn, error = generate_serial_number(project_name, revision, finish_date)
     if error:
@@ -72,14 +93,14 @@ def on_generate():
     sn_display.configure(state="normal")
     sn_display.delete(0, "end")
     sn_display.insert(0, sn)
-    # The binding on sn_display prevents editing, so the text is effectively read-only.
-    
+    # The binding on sn_display prevents editing, so the text is read-only.
+
     # Generate the QR code and update the label's image
     qr_pil_image = generate_qr_code(sn)
     qr_ctk_image = ctk.CTkImage(light_image=qr_pil_image, size=(150, 150))
     qr_label.configure(image=qr_ctk_image)
     qr_label.image = qr_ctk_image  # Keep a reference to avoid garbage collection
-    
+
     status_label.configure(text="Serial number generated.")
 
 def on_save_all():
@@ -120,9 +141,14 @@ def on_save_all():
     
     if qr_pil_image:
         try:
+            # Save as PNG
             qr_pil_image.save(qr_filepath)
+            # Also save as BMP
+            bmp_filename = f"QR-{project_name}-{revision}.bmp"
+            bmp_filepath = os.path.join(save_location, bmp_filename)
+            qr_pil_image.save(bmp_filepath)
         except Exception as e:
-            status_label.configure(text=f"Error saving QR file: {e}")
+            status_label.configure(text=f"Error saving QR files: {e}")
             return
     
     status_label.configure(text="Files saved successfully.")
