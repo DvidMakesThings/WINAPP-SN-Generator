@@ -14,10 +14,10 @@ def generate_serial_number(project_name, revision, finish_date):
     """
     Generate a serial number using the finish date (DDMMYY) and a 4-digit hash
     computed from the concatenation of project name and revision. Instead of
-    appending the random value, we add a random number (0–9999) to the base hash.
+    appending a random value, a random number (0–9999) is added to the base hash.
     
-    final_hash = (base_hash + (random_value mod 10000)) mod 10000
-    Final format: SN-DDMMYY-XXXX
+    final_hash = (base_hash + (random_value mod 10000)) mod 1000000
+    Final format: SN-XXXXDDMMYY   (where XXXX is the final hash formatted as at least 4 digits)
     """
     try:
         date_obj = datetime.datetime.strptime(finish_date, "%d%m%y")
@@ -27,11 +27,11 @@ def generate_serial_number(project_name, revision, finish_date):
     
     input_string = project_name + revision
     md5_hash = hashlib.md5(input_string.encode())
-    base_hash = int(md5_hash.hexdigest(), 16) 
+    base_hash = int(md5_hash.hexdigest(), 16)
     
-    random_mod = random.getrandbits(32) 
+    random_mod = random.getrandbits(32) % 10000
     final_hash = (base_hash + random_mod) % 1000000
-    final_hash_str = f"{final_hash:04}"
+    final_hash_str = f"{final_hash:04}"  # Adjust width as needed
     
     sn = f"SN-{final_hash_str}{date_str}"
     return sn, None
@@ -76,19 +76,16 @@ def on_generate():
         has_error = True
     else:
         project_entry.configure(border_color="gray")
-        
     if not revision_entry.get().strip():
         revision_entry.configure(border_color="red")
         has_error = True
     else:
         revision_entry.configure(border_color="gray")
-        
     if not finish_date_var.get().strip():
         finish_date_entry.configure(border_color="red")
         has_error = True
     else:
         finish_date_entry.configure(border_color="gray")
-        
     if has_error:
         status_label.configure(text="Please fill in the highlighted fields!")
         return
@@ -102,7 +99,7 @@ def on_generate():
         status_label.configure(text=error)
         return
 
-    # Update the serial number display (now editable so the text can be selected/copied)
+    # Update the serial number display (editable so text can be selected/copied)
     sn_display.configure(state="normal")
     sn_display.delete(0, "end")
     sn_display.insert(0, sn)
@@ -136,10 +133,10 @@ def on_save_all():
             status_label.configure(text=f"Error creating directory: {e}")
             return
     
-    # Save files with the SN included in the filename.
-    sn_filename = f"{sn_text}.txt"
-    qr_filename = f"{sn_text}.png"
-    bmp_filename = f"{sn_text}.bmp"
+    # Save files with the project name and SN included in the filename.
+    sn_filename = f"{project_name}_{sn_text}.txt"
+    qr_filename = f"{project_name}_{sn_text}.png"
+    bmp_filename = f"{project_name}_{sn_text}.bmp"
     sn_filepath = os.path.join(save_location, sn_filename)
     qr_filepath = os.path.join(save_location, qr_filename)
     bmp_filepath = os.path.join(save_location, bmp_filename)
@@ -183,7 +180,7 @@ ctk.set_default_color_theme("dark-blue")
 
 app = ctk.CTk()
 app.title("Serial Number Generator")
-app.geometry("450x680")  # Updated geometry
+app.geometry("450x680")
 app.grid_columnconfigure(0, weight=1)
 
 # --- Top Frame: Project Name & Revision (side by side) ---
@@ -215,41 +212,45 @@ use_current_date_var = ctk.BooleanVar()
 use_current_date_checkbox = ctk.CTkCheckBox(app, text="Use current date", variable=use_current_date_var, command=toggle_date_entry)
 use_current_date_checkbox.grid(row=3, column=0, padx=10, pady=5, sticky="w")
 
-# --- Browse Button (placed on row 4) ---
-browse_button = ctk.CTkButton(app, text="Browse", command=browse_save_location)
-browse_button.grid(row=4, column=0, padx=150, pady=5, sticky="w")
-
-# --- Save Location Entry ---
-default_save_location = os.getcwd()
-save_entry = ctk.CTkEntry(app, placeholder_text="Enter save directory path", fg_color=entry_bg)
-save_entry.grid(row=5, column=0, padx=10, pady=5, sticky="ew")
-save_entry.insert(0, default_save_location)
-
-# --- Generate SN Button ---
-generate_button = ctk.CTkButton(app, text="Generate SN", command=on_generate)
-generate_button.grid(row=6, column=0, padx=10, pady=15, sticky="ew")
+# --- Generate SN Button (dark green) ---
+generate_button = ctk.CTkButton(app, text="Generate SN", command=on_generate,
+                                fg_color="#006400", hover_color="#004d00")
+generate_button.grid(row=4, column=0, padx=10, pady=15, sticky="ew")
 
 # --- Serial Number Display (selectable and copyable) ---
 sn_label_title = ctk.CTkLabel(app, text="Serial Number:")
-sn_label_title.grid(row=7, column=0, padx=10, pady=5, sticky="w")
+sn_label_title.grid(row=5, column=0, padx=10, pady=5, sticky="w")
 sn_display = ctk.CTkEntry(app, font=("Helvetica", 14))
-sn_display.grid(row=8, column=0, padx=10, pady=5, sticky="ew")
-# (No binding is set here so that users can select and copy the text.)
+sn_display.grid(row=6, column=0, padx=10, pady=5, sticky="ew")
 
 # --- QR-Code Display (with placeholder) ---
 qr_label_title = ctk.CTkLabel(app, text="QR-Code:")
-qr_label_title.grid(row=9, column=0, padx=10, pady=5, sticky="w")
+qr_label_title.grid(row=7, column=0, padx=10, pady=5, sticky="w")
 placeholder_img = Image.new("RGBA", (150, 150), (0, 0, 0, 0))
 placeholder_ctk_image = ctk.CTkImage(light_image=placeholder_img, size=(150, 150))
 qr_label = ctk.CTkLabel(app, image=placeholder_ctk_image, text="")
-qr_label.grid(row=10, column=0, padx=10, pady=5)
+qr_label.grid(row=8, column=0, padx=10, pady=5)
 
-# --- Save All Button ---
-save_all_button = ctk.CTkButton(app, text="Save All", command=on_save_all)
-save_all_button.grid(row=11, column=0, padx=10, pady=15, sticky="ew")
+# --- Save Location Entry (PATH INPUT) ---
+save_entry = ctk.CTkEntry(app, placeholder_text="Enter save directory path", fg_color=entry_bg)
+save_entry.grid(row=9, column=0, padx=10, pady=5, sticky="ew")
+default_save_location = os.getcwd()
+save_entry.insert(0, default_save_location)
+
+# --- Button Frame for Browse and Save All Buttons ---
+button_frame = ctk.CTkFrame(app)
+button_frame.grid(row=10, column=0, padx=10, pady=5, sticky="ew")
+button_frame.grid_columnconfigure(0, weight=1)
+button_frame.grid_columnconfigure(1, weight=1)
+
+browse_button = ctk.CTkButton(button_frame, text="Browse", command=browse_save_location)
+browse_button.grid(row=0, column=0, padx=5, pady=5, sticky="ew")
+save_all_button = ctk.CTkButton(button_frame, text="Save All", command=on_save_all,
+                                fg_color="#006400", hover_color="#004d00")
+save_all_button.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
 
 # --- Status / Message Label ---
 status_label = ctk.CTkLabel(app, text="", font=("Helvetica", 12))
-status_label.grid(row=12, column=0, padx=10, pady=5, sticky="w")
+status_label.grid(row=11, column=0, padx=10, pady=5, sticky="w", columnspan=2)
 
 app.mainloop()
