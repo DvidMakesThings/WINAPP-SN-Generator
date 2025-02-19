@@ -66,7 +66,7 @@ In addition, a QR code is generated from the serial number and displayed (resize
 
 To build a standalone executable (without a console window) using PyInstaller and to include an icon (converted to ICO format), run:
 ```bash
-pyinstaller --onefile --windowed --name SN-Gen --icon=youricon.ico main.py
+pyinstaller --onefile --windowed --name SN-Gen --icon=ico.ico main.py
 ```
 
 ## License
